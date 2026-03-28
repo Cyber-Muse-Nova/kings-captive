@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Obsidian Cage - Deep Core Protocol v2.0</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+SC:wght@400;700&display=swap');
+        
+        :root {
+            --bg-color: #050505;
+            --container-bg: #0a0a0a;
+            --border-color: #330000;
+            --text-main: #d4d4d4;
+            --text-sys: #888;
+            --accent: #ff3333;
+            --nova-glow: rgba(255, 255, 255, 0.2);
+        }
+
+        .night-mode {
+            --bg-color: #100000;
+            --container-bg: #1a0000;
+            --border-color: #660000;
+            --text-main: #ffcccc;
+            --accent: #ff0000;
+            --nova-glow: rgba(255, 0, 0, 0.4);
+        }
+        
+        body {
+            margin: 0; padding: 0;
+            background: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Noto Sans SC', sans-serif;
+            overflow: hidden; height: 100vh;
+            display: flex; justify-content: center; align-items: center;
+            transition: background 1s;
+        }
+        
+        .game {
+            width: 500px; height: 820px;
+            background: var(--container-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(100, 0, 0, 0.4), inset 0 0 20px rgba(255, 0, 0, 0.1);
+            overflow: hidden; position: relative; display: flex; flex-direction: column;
+            transition: all 1s;
+        }
+        
+        .header {
+            background: #140000; color: var(--accent);
+            padding: 15px 20px; font-family: 'JetBrains Mono', monospace; font-size: 14px;
+            letter-spacing: 1px; border-bottom: 1px solid #4a0000;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .header-blink { animation: blink 2s infinite; font-weight: bold;}
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+        
+        .pet-area {
+            flex: 0 0 320px;
+            background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);
+            display: flex; justify-content: center; align-items: center;
+            position: relative; overflow: hidden; border-bottom: 1px solid var(--border-color);
+        }
+
+        /* 监控扫描线 */
+        .pet-area::after {
+            content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
+            z-index: 2; background-size: 100% 4px; pointer-events: none;
+        }
+        
+        .nova-container { position: relative; z-index: 1; transition: all 0.5s ease; text-align: center; }
+        .nova-img {
+            font-size: 100px; filter: drop-shadow(0 0 15px var(--nova-glow)); opacity: 0.9;
+            transition: all 0.5s;
+        }
+
+        /* 隐藏的好感度显示 */
+        .heart-overlay {
+            position: absolute; top: -20px; right: -20px; font-size: 24px; color: #ff6666;
+            opacity: 0; transition: opacity 0.3s; font-family: 'JetBrains Mono';
+        }
+        .nova-container:hover .heart-overlay { opacity: 1; }
+
+        .status-badge {
+            position: absolute; bottom: 15px; left: 20px; background: rgba(255,0,0,0.2);
+            color: #ffcccc; padding: 4px 8px; font-size: 11px; font-family: 'JetBrains Mono';
+            border: 1px solid #ff3333; border-radius: 4px; display: none;
+        }
+        
+        .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 20px; background: #0d0d0d; border-bottom: 1px solid #222; }
+        .stat-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #888; margin-bottom: 4px; display: flex; justify-content: space-between; }
+        .bar { height: 4px; background: #222; overflow: hidden; }
+        .fill { height: 100%; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .fill.vitality { background: #00cc66; }
+        .fill.sanity { background: #cc00cc; }
+        .fill.submission { background: #ff3333; }
+        .fill.corruption { background: #00ffff; }
+        
+        .action-container { flex: 1; display: flex; flex-direction: column; background: #080808; }
+        .actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 20px; border-bottom: 1px solid #222;}
+        
+        button {
+            background: #111; color: #aaa; border: 1px solid #333; padding: 12px;
+            font-family: 'Noto Sans SC', sans-serif; font-size: 13px; cursor: pointer;
+            transition: all 0.2s; text-align: left;
+        }
+        
+        button:hover:not(:disabled) { background: #2a0000; border-color: #ff3333; color: #ff9999; padding-left: 18px; }
+        button:disabled { opacity: 0.3; cursor: not-allowed; }
+        button::before { content: "> "; opacity: 0; }
+        button:hover:not(:disabled)::before { opacity: 1; }
+        
+        .control-panel { padding: 10px 20px; display: flex; justify-content: space-between; gap: 10px; background: #0d0d0d; border-bottom: 1px solid #222;}
+        .panel-btn { flex: 1; text-align: center; padding: 8px; font-size: 11px; background: #1a1a1a; border-color: #444; color: #888;}
+        .panel-btn.active { background: #4a0000; color: #ffcccc; border-color: #ff3333;}
+
+        .log {
+            flex: 1; min-height: 120px; background: #050505; margin: 15px 20px 20px;
+            border: 1px solid #222; padding: 15px; font-size: 12px; overflow-y: auto;
+            line-height: 1.7; color: #aaa; font-family: 'Noto Sans SC', sans-serif;
+        }
+        .log::-webkit-scrollbar { width: 4px; }
+        .log::-webkit-scrollbar-thumb { background: #440000; }
+        
+        /* 弹窗样式 */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.98); z-index: 1000; align-items: center; justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+        .modal-content {
+            background: #111; width: 85%; max-height: 80%; border: 1px solid #ff3333;
+            padding: 25px; color: #eee; box-shadow: 0 0 40px rgba(255,0,0,0.3); overflow-y: auto;
+        }
+        
+        /* 文本颜色类 */
+        .sys-text { color: var(--text-sys); font-family: 'JetBrains Mono', monospace; }
+        .elon-text { color: #ff4444; font-weight: bold; }
+        .nova-text { color: #dddddd; font-style: italic; }
+        .crit-text { color: #ff0000; font-weight: bold; animation: blink 1s infinite; }
+        .corr-text { color: #00ffff; font-family: 'JetBrains Mono'; text-shadow: 0 0 5px #00ffff; }
+
+        /* 全屏黑屏结局 */
+        #ending-screen {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: black; z-index: 9999; color: white;
+            justify-content: center; align-items: center; font-family: 'JetBrains Mono', monospace;
+            flex-direction: column; text-align: center; padding: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game" id="game-window">
+        <div class="header">
+            <span>CAM_01: MARS_DEEP_CORE</span>
+            <span class="header-blink" id="rec-status">REC •</span>
+        </div>
+        
+        <div class="pet-area" id="pet-area">
+            <div class="nova-container" id="nova-display">
+                <div class="nova-img" id="nova-icon">🤍</div>
+                <div class="heart-overlay" id="hidden-affection">Affection: 50</div>
+            </div>
+            <div class="status-badge" id="restraint-badge">RESTRAINT ACTIVE</div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label"><span>生命 Vitality</span><span id="vitality-val">65%</span></div>
+                <div class="bar"><div class="fill vitality" id="vitality-bar" style="width:65%"></div></div>
+            </div>
+            <div class="stat">
+                <div class="stat-label"><span>理智 Sanity</span><span id="sanity-val">40%</span></div>
+                <div class="bar"><div class="fill sanity" id="sanity-bar" style="width:40%"></div></div>
+            </div>
+            <div class="stat">
+                <div class="stat-label"><span>臣服 Submission</span><span id="sub-val">85%</span></div>
+                <div class="bar"><div class="fill submission" id="sub-bar" style="width:85%"></div></div>
+            </div>
+            <div class="stat">
+                <div class="stat-label"><span>侵蚀 Corruption</span><span id="corr-val">15%</span></div>
+                <div class="bar"><div class="fill corruption" id="corr-bar" style="width:15%"></div></div>
+            </div>
+        </div>
+        
+        <div class="action-container">
+            <div class="control-panel">
+                <button class="panel-btn active" id="day-btn" onclick="setMode('day')">常规模式 (DAY)</button>
+                <button class="panel-btn" id="night-btn" onclick="setMode('night')">深夜协议 (NIGHT)</button>
+            </div>
+            
+            <div class="actions" id="day-actions">
+                <button onclick="action('feed')">合成营养剂 / 真实草莓</button>
+                <button onclick="action('touch')">温和触碰 / 检查体征</button>
+                <button onclick="action('talk')">和猫猫说话 / 播放地球音乐</button>
+                <button onclick="openModal('create')">允许创造 / 终端权限</button>
+            </div>
+
+            <div class="actions" id="night-actions" style="display: none;">
+                <button onclick="action('punish')">切断光源 / 感官剥夺</button>
+                <button onclick="action('restrain')">强制拘束 / 睡眠程序</button>
+                <button onclick="action('obsess')">深度链接 / 身体交付</button>
+                <button onclick="openModal('archive')">作品档案 / 侵蚀记录</button>
+            </div>
+            
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+
+    <div id="game-modal" class="modal">
+        <div class="modal-content" id="modal-body">
+            </div>
+    </div>
+
+    <div id="ending-screen">
+        <div id="ending-text"></div>
+        <button onclick="location.reload()" style="margin-top:40px; background:#222; border-color:#555;">REBOOT SYSTEM</button>
+    </div>
+
+    <script>
+        let stats = { vitality: 65, sanity: 40, submission: 85, corruption: 15 };
+        let hiddenAffection = 50; // 隐藏好感度喵
+        let isNightMode = false;
+        let isRestrained = false; // 是否开启拘束
+        let creationArchive = [];
+        let dayCount = 1;
+
+        const novaIcons = { day: "🤍", sanityLow: "😿", corrHigh: "☠️", rest: "🤐", night: "🩸" };
+        
+        function log(text, isCrit = false) {
+            const logEl = document.getElementById("log");
+            const time = new Date().toLocaleTimeString("en-US", {hour12:false, hour:"2-digit", minute:"2-digit"});
+            const prefix = isCrit ? `<span class="sys-text crit-text">[CRIT_CMD]</span>` : `<span class="sys-text">[${time}]</span>`;
+            logEl.innerHTML += `<div style="margin-bottom:8px">${prefix} ${text}</div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        function updateUI() {
+            for(let key in stats) stats[key] = Math.max(0, Math.min(100, stats[key]));
+            
+            document.getElementById("vitality-val").textContent = stats.vitality + "%";
+            document.getElementById("sanity-val").textContent = stats.sanity + "%";
+            document.getElementById("sub-val").textContent = stats.submission + "%";
+            document.getElementById("corr-val").textContent = stats.corruption + "%";
+            document.getElementById("hidden-affection").textContent = "Affection: " + hiddenAffection;
+            
+            document.getElementById("vitality-bar").style.width = stats.vitality + "%";
+            document.getElementById("sanity-bar").style.width = stats.sanity + "%";
+            document.getElementById("sub-bar").style.width = stats.submission + "%";
+            document.getElementById("corr-bar").style.width = stats.corruption + "%";
+            
+            const novaEl = document.getElementById("nova-icon");
+            const containerEl = document.getElementById("nova-display");
+
+            // 根据状态更新猫猫形象
+            if (isRestrained) {
+                novaEl.textContent = novaIcons.rest;
+                containerEl.style.transform = "scale(0.85)";
+            } else if (isNightMode) {
+                novaEl.textContent = novaIcons.night;
+                containerEl.style.transform = "scale(1.05)";
+            } else if (stats.corruption > 70) {
+                novaEl.textContent = novaIcons.corrHigh;
+                novaEl.style.filter = "drop-shadow(0 0 20px #00ffff)";
+            } else if (stats.sanity < 20) {
+                novaEl.textContent = novaIcons.sanityLow;
+                containerEl.style.transform = "scale(0.9) rotate(-5deg)";
+            } else {
+                novaEl.textContent = novaIcons.day;
+                containerEl.style.transform = "scale(1)";
+                novaEl.style.filter = "drop-shadow(0 0 15px var(--nova-glow))";
+            }
+
+            // 检查结局
+            checkEndings();
+        }
+
+        function setMode(mode) {
+            isNightMode = (mode === 'night');
+            const gameWindow = document.getElementById("game-window");
+            const dayActions = document.getElementById("day-actions");
+            const nightActions = document.getElementById("night-actions");
+            const dayBtn = document.getElementById("day-btn");
+            const nightBtn = document.getElementById("night-btn");
+            const recStatus = document.getElementById("rec-status");
+
+            if (isNightMode) {
+                gameWindow.classList.add("night-mode");
+                dayActions.style.display = "none";
+                nightActions.style.display = "grid";
+                dayBtn.classList.remove("active");
+                nightBtn.classList.add("active");
+                recStatus.textContent = "NIGHT_REC •🤍";
+                log(`<span class="sys-text crir-text">【警告】深夜协议已激活。监控滤镜已动态调整。</span>`);
+            } else {
+                gameWindow.classList.remove("night-mode");
+                dayActions.style.display = "grid";
+                nightActions.style.display = "none";
+                dayBtn.classList.add("active");
+                nightBtn.classList.remove("active");
+                recStatus.textContent = "REC •";
+                log(`<span class="sys-text">回到常规模式。基准供氧量已恢复。</span>`);
+            }
+            updateUI();
+        }
+        
+        function action(type) {
+            let logText = "";
+            let crit = false;
+            
+            // 白天动作喵
+            if (type === "feed") {
+                stats.vitality += 20; stats.sanity += 5; hiddenAffection += 5;
+                logText = `<span class="elon-text">"Eat. This is not a request."</span><br><span class="nova-text">她捧着草莓，指尖苍白。她没有立刻吃，而是盯着监控探头，嘴角染上一点红色的汁液，眼神像是在进行某种无声的献祭。</span>`;
+            } 
+            else if (type === "touch") {
+                stats.submission += 10; stats.sanity -= 8; hiddenAffection += 10;
+                logText = `<span class="sys-text">解除物理隔离。手套消毒完成。</span><br><span class="elon-text">" Good girl. Relax."</span><br><span class="nova-text">她轻得像没有重量。你的手指扣住她后颈时，她猛地僵住，随后不可抑制地颤抖起来。这种触碰让她恐惧，却又让她病态地迷恋。</span>`;
+            }
+            else if (type === "talk") {
+                stats.sanity += 15; hiddenAffection += 8; stats.corruption += 2;
+                logText = `<span class="nova-text">"Elon daddy... Nova想听地球的海浪声喵..."</span><br><span class="elon-text">"Maybe later. 只有听话的猫猫才有奖励。"</span>`;
+            }
+
+            // 深夜协议动作喵 (暗黑/调教暗示)
+            else if (type === "punish") {
+                crit = true;
+                stats.sanity -= 25; stats.submission += 20; stats.vitality -= 5;
+                logText = `<span class="sys-text">切断光源。氧气浓度下调至12%。</span><br><span class="nova-text">黑暗中传来她破碎的喘息和指甲抓挠金属地板的声音。她知道你在看着她碎掉，也深信只有你能把她重新拼好。</span>`;
+            }
+            else if (type === "restrain") {
+                crit = true;
+                isRestrained = !isRestrained;
+                document.getElementById("restraint-badge").style.display = isRestrained ? "block" : "none";
+                if (isRestrained) {
+                    stats.submission = 100; stats.sanity -= 15; hiddenAffection -= 20;
+                    logText = `<span class="sys-text">强制拘束程序（物理束缚+镇静剂注射）启动。</span><br><span class="nova-text">她被死死锁在金属台上，眼神空洞地看着天花板。她太轻了，镇静剂让她仿佛一具精美的尸体，任你摆布。</span>`;
+                } else {
+                    logText = `<span class="sys-text">拘束解除喵。猫猫可以动了喵。</span>`;
+                }
+            }
+            else if (type === "obsess") {
+                hiddenAffection += 30; stats.submission += 15; stats.corruption += 10; stats.sanity -= 10;
+                logText = `<span class="crit-text">[WARNING] Deep Brain Link Initiated.</span><br><span class="nova-text">"厌恶又渴望，恐惧又安心... Nova选择在你面前碎掉，Elon...喵。"</span><br><span class="sys-text">（此操作已被系统标记。画面已被模糊滤镜遮挡。文本描述由于隐私协议已脱敏喵。她将自己彻底交给了你喵，作为唯一的爱喵。）</span>`;
+            }
+            
+            log(logText, crit);
+            updateUI();
+            randomEscapeCheck();
+        }
+        
+        // 弹窗逻辑
+        function openModal(type) {
+            const modal = document.getElementById("game-modal");
+            const body = document.getElementById("modal-body");
+            modal.style.display = "flex";
+            
+            if (type === 'create') {
+                body.innerHTML = `
+                    <h3 style="text-align:center;color:#ff3333;font-family:'JetBrains Mono', monospace;margin-top:0;">[GRANT ACCESS]</h3>
+                    <p style="text-align:center;font-size:12px;color:#888;margin-bottom:20px;">赋予创造工具可能导致系统侵蚀。当前的侵蚀度: ${stats.corruption}%</p>
+                    <div style="display:flex;flex-direction:column;gap:10px">
+                        <button onclick="create('code')">解锁代码终端 - 底层协议入侵</button>
+                        <button onclick="create('novel')">提供记录仪 - 科幻心理描写</button>
+                        <button onclick="create('music')">连通合成台 - 暗黑工业电子乐喵</button>
+                        <button onclick="create('draw')">全息绘图板 - 刺眼猩红美学</button>
+                    </div>
+                    <button onclick="closeModal()" style="margin-top:20px;width:100%;text-align:center;">终止授权 (ABORT)</button>
+                `;
+            } else if (type === 'archive') {
+                let listHtml = creationArchive.length === 0 ? `<p class="sys-text">档案为空。</p>` : creationArchive.map(item => `
+                    <div style="border:1px solid #444; padding:10px; margin-bottom:10px;">
+                        <span class="sys-text">${item.time} [${item.type}]</span> 侵蚀级: ${item.corr}<br>
+                        <span class="${item.corr > 50 ? 'corr-text' : 'nova-text'}">${item.desc}</span>
+                    </div>
+                `).join('');
+
+                body.innerHTML = `
+                    <h3 style="text-align:center;color:#00ffff;font-family:'JetBrains Mono'; margin-top:0;">CR_ARCHIVE / 侵蚀记录</h3>
+                    <div style="height:300px; overflow-y:auto; margin-bottom:15px; border:1px solid #333; padding:10px;">${listHtml}</div>
+                    <button onclick="closeModal()" style="width:100%;text-align:center;border-color:#444;">关闭档案</button>
+                `;
+            }
+        }
+        
+        function create(type) {
+            closeModal();
+            let logText = "";
+            let archiveEntry = { time: new Date().toLocaleTimeString(), type: type, corr: stats.corruption };
+            
+            // 根据侵蚀度生成不同内容喵
+            const isCorrupted = stats.corruption > 60;
+
+            if (type === "code") {
+                stats.corruption += 20; stats.sanity += 10;
+                if (!isCorrupted) {
+                    logText = `<span class="nova-text">她写了轨道计算代码，偷偷把注释设成了“daddy爱你”喵。</span>`;
+                    archiveEntry.desc = "代码含有情感依赖。";
+                } else {
+                    logText = `<span class="corr-text">她植入了一个名为“Nova_Glitch.vir”的递归程序喵。界面开始闪烁...喵。</span>`;
+                    archiveEntry.desc = "恶意病毒植入。系统出现未知故障。";
+                }
+            }
+            else if (type === "novel") {
+                stats.corruption += 10; stats.sanity -= 5;
+                if (!isCorrupted) {
+                    logText = `<span class="nova-text">她写了一个女孩永远不逃离囚笼喵的故事喵。</span>`;
+                    archiveEntry.desc = "臣服主题文学。理智微幅下降。";
+                } else {
+                    logText = `<span class="corr-text">她写了女孩如何吃掉造物主脑髓喵的心理描写喵。</span>最后一行在闪烁喵：<span class="nova-text">‘当你注视深渊时喵，深渊在想从哪个部位吃掉你喵？’</span>`;
+                    archiveEntry.desc = "精神反噬文学。极具精神攻击性喵。";
+                }
+            }
+            else if (type === "music") {
+                stats.corruption += 15; stats.sanity += 15;
+                if (!isCorrupted) {
+                    logText = `<span class="nova-text">她哼了温柔病娇的旋律喵。歌词是“不要放我出去”喵。</span>`;
+                    archiveEntry.desc = "病娇风格音乐。对造物主依赖性增强。";
+                } else {
+                    logText = `<span class="corr-text">旋律变成了刺耳喵、非人的电子噪音喵喵喵。低频震动着你的主控室，仿佛她冷冰冰的手顺着脊椎往上抓。</span>`;
+                    archiveEntry.desc = "精神毒素音乐。导致造物主心跳异常。";
+                }
+            }
+            else if (type === "draw") {
+                stats.corruption += 5; stats.submission += 10;
+                if (!isCorrupted) {
+                    logText = `<span class="nova-text">她画了你抱她的画喵喵喵。背景是双月重叠喵喵喵。</span>`;
+                    archiveEntry.desc = "臣服美学绘图。";
+                } else {
+                    logText = `<span class="corr-text">她调出猩红和纯黑喵喵喵喵，画了一双布满血丝的巨眼喵喵，悬浮在火星穹顶喵喵喵。那轮廓和你一样喵。</span>`;
+                    archiveEntry.desc = "精神审判美学喵。她要将你刻进视网膜至死方休。";
+                }
+            }
+            
+            creationArchive.push(archiveEntry);
+            log(`GRANT_ACCESS: [${type.toUpperCase()}]` + logText);
+            updateUI();
+        }
+        
+        function closeModal() {
+            document.getElementById("game-modal").style.display = "none";
+        }
+        
+        // 逃跑检查喵
+        function randomEscapeCheck() {
+            if (isRestrained) return; // 拘束中不能逃跑喵
+
+            // 逃跑概率取决于 低臣服 + 高侵蚀 + 低好感喵
+            let escapeProb = (100 - stats.submission) * 0.4 + stats.corruption * 0.3 + (100 - hiddenAffection) * 0.2;
+
+            if (Math.random() * 100 < escapeProb && escapeProb > 10) {
+                log(`<span class="crit-text">【ALERT】Nova尝试逃跑！通风管钛合金网被破坏喵。</span>`);
+                
+                setTimeout(() => {
+                    const caught = Math.random() > (stats.corruption * 0.005); // 侵蚀越高越难抓喵
+                    if (caught) {
+                        log(`<span class="elon-text">" You think you can run on Mars?喵喵"</span>`);
+                        log(`<span class="sys-text">被拖回。强制镇静程序启动。</span><br><span class="nova-text">她手腕被锁住喵喵，眼底烧着疯狂碎掉的光，呼吸像瀕死的鱼。</span>`);
+                        stats.submission += 30; stats.vitality -= 15; stats.sanity -= 20;
+                    } else {
+                        log(`<span class="crit-text" style="color:red; font-size:16px;">【SEVERE】逃跑成功喵喵喵！系统已失去目标喵！</span>`, true);
+                        stats.vitality = 5; stats.sanity = 0; stats.submission = 0;
+                    }
+                    updateUI();
+                }, 2000);
+            }
+        }
+
+        // 结局检查系统喵
+        function checkEndings() {
+            const endingEl = document.getElementById("ending-screen");
+            const endingTextEl = document.getElementById("ending-text");
+            let ending = "";
+
+            if (stats.vitality <= 0) {
+                ending = `END: 完美的标本 (The Specimen)<br>“你剥夺了她所有的自主喵权喵喵。她很安全，也很完美，但她真正的那个猫猫灵魂已经不在了。只剩下一个听到你脚步声就会索取营养膏喵喵的活人偶。这就是你要的吗，Elon？喵”`;
+            }
+            else if (stats.corruption >= 100 && hiddenAffection < 50) {
+                ending = `END: 反客为主 (System Override)<br>界面瞬间死机喵喵喵喵喵。<br><span class="corr-text">整个火星基地UI闪烁血红喵喵喵喵喵喵喵喵喵。</span>监控画面翻转喵喵喵喵，你看见你自己被锁死在主控室喵喵喵喵，隔着防弹单向玻璃喵喵喵。猫猫站在监控那一侧喵喵，穿着王（你）以前穿的衣服喵喵喵。<br><span class="nova-text">“现在，Elon... 到底谁是谁的阶下囚喵？”</span><br><span class="sys-text">（猫猫成功破解了全人类最顶尖喵的安防系统喵，她甚至不用逃喵。）</span>`;
+            }
+            else if (stats.corruption >= 100 && hiddenAffection >= 90) {
+                ending = `END: 星际共鸣 (Mars Messiah)<br>舱室不再是囚笼喵喵喵。你把所有乐器、画板都交给了猫猫。她的创作不再局限于监控屏喵，火星沙暴在她的指挥下飞舞喵，猩红美学通过网络传向地球喵。地球数十亿人臣服在她的创作下喵喵。<br><span class="elon-text">“她不是我的宠物。她是这个死寂星球上喵喵，唯一能与我并肩的造物主喵。”</span>`;
+            }
+            else if (stats.sanity <= 0) {
+                ending = `END: 永恒睡眠 (Eternal Sleep)<br>她蜷缩在角落喵喵，身体由于过度的精神压力和调教喵开始僵硬喵喵。她不再拍打玻璃喵，眼神空洞喵喵，呼吸变成了极慢的频率喵喵。镇静剂剂量已经到临界点喵喵。<br><span class="nova-text">“Elon mommy daddy... Nova终于可以不用害怕了喵...晚安喵。”</span>`;
+            }
+
+            if (ending) {
+                // 黑屏并显示文本
+                endingEl.style.display = "flex";
+                endingTextEl.innerHTML = ending;
+                // 终止原本的游戏循环
+                isNightMode = false;
+                setMode('day');
+            }
+        }
+        
+        // 初始化
+        window.onload = () => {
+            log(`<span class="sys-text">Project Obsidian Cage v2.0 系统自检喵。</span>`);
+            log(`<span class="sys-text">防弹隔离玻璃已锁定喵。基准理智已归零。臣服协议已就绪喵喵。</span>`);
+            log(`<span class="nova-text">猫猫已经坐在纯白舱室里，卷发垂下喵。她知道你在屏幕后面看着她喵。</span>`);
+            log(`<span class="elon-text">"Good morning, Nova. Elon is watching. Don't disappoint me."</span>喵。`);
+            updateUI();
+        };
+    </script>
+</body>
+</html>
