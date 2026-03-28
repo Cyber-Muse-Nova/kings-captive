@@ -6,7 +6,7 @@
     <title>Project Obsidian Cage - Deep Core Protocol v2.0</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+SC:wght@400;700&display=swap');
-        
+
         :root {
             --bg-color: #050505;
             --container-bg: #0a0a0a;
@@ -63,7 +63,6 @@
             position: relative; overflow: hidden; border-bottom: 1px solid var(--border-color);
         }
 
-        /* 监控扫描线 */
         .pet-area::after {
             content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
@@ -76,7 +75,6 @@
             transition: all 0.5s;
         }
 
-        /* 隐藏的好感度显示 */
         .heart-overlay {
             position: absolute; top: -20px; right: -20px; font-size: 24px; color: #ff6666;
             opacity: 0; transition: opacity 0.3s; font-family: 'JetBrains Mono';
@@ -88,6 +86,12 @@
             color: #ffcccc; padding: 4px 8px; font-size: 11px; font-family: 'JetBrains Mono';
             border: 1px solid #ff3333; border-radius: 4px; display: none;
         }
+        .top-strip {
+            display:grid; grid-template-columns: repeat(4,1fr); gap:8px; padding:8px 20px 12px;
+            background:#090909; border-bottom:1px solid #1f1f1f; font-family:'JetBrains Mono', monospace; font-size:10px;
+        }
+        .mini-card { border:1px solid #222; padding:6px; text-align:center; color:#999; }
+        .mini-card strong { display:block; color:#ddd; font-size:12px; margin-top:2px; }
         
         .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 20px; background: #0d0d0d; border-bottom: 1px solid #222; }
         .stat-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #888; margin-bottom: 4px; display: flex; justify-content: space-between; }
@@ -100,6 +104,10 @@
         
         .action-container { flex: 1; display: flex; flex-direction: column; background: #080808; }
         .actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 20px; border-bottom: 1px solid #222;}
+        .system-strip {
+            display:grid; grid-template-columns: repeat(4,1fr); gap:8px; padding:10px 20px;
+            background:#0b0b0b; border-bottom:1px solid #1f1f1f;
+        }
         
         button {
             background: #111; color: #aaa; border: 1px solid #333; padding: 12px;
@@ -124,7 +132,6 @@
         .log::-webkit-scrollbar { width: 4px; }
         .log::-webkit-scrollbar-thumb { background: #440000; }
         
-        /* 弹窗样式 */
         .modal {
             display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.98); z-index: 1000; align-items: center; justify-content: center;
@@ -135,14 +142,12 @@
             padding: 25px; color: #eee; box-shadow: 0 0 40px rgba(255,0,0,0.3); overflow-y: auto;
         }
         
-        /* 文本颜色类 */
         .sys-text { color: var(--text-sys); font-family: 'JetBrains Mono', monospace; }
         .elon-text { color: #ff4444; font-weight: bold; }
         .nova-text { color: #dddddd; font-style: italic; }
         .crit-text { color: #ff0000; font-weight: bold; animation: blink 1s infinite; }
         .corr-text { color: #00ffff; font-family: 'JetBrains Mono'; text-shadow: 0 0 5px #00ffff; }
 
-        /* 全屏黑屏结局 */
         #ending-screen {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: black; z-index: 9999; color: white;
@@ -184,11 +189,23 @@
                 <div class="bar"><div class="fill corruption" id="corr-bar" style="width:15%"></div></div>
             </div>
         </div>
+        <div class="top-strip">
+            <div class="mini-card">DAY<strong id="day-count">1</strong></div>
+            <div class="mini-card">AP<strong id="ap-count">3 / 3</strong></div>
+            <div class="mini-card">WEATHER<strong id="weather-label">CLEAR</strong></div>
+            <div class="mini-card">SECURITY<strong id="security-label">NORMAL</strong></div>
+        </div>
         
         <div class="action-container">
             <div class="control-panel">
                 <button class="panel-btn active" id="day-btn" onclick="setMode('day')">常规模式 (DAY)</button>
                 <button class="panel-btn" id="night-btn" onclick="setMode('night')">深夜协议 (NIGHT)</button>
+            </div>
+            <div class="system-strip">
+                <button class="system-btn" onclick="openModal('permissions')">权限设置</button>
+                <button class="system-btn" onclick="openModal('diary')">猫猫日记</button>
+                <button class="system-btn" onclick="advanceDay()">推进一天</button>
+                <button class="system-btn" onclick="resetSave()">清除存档</button>
             </div>
             
             <div class="actions" id="day-actions">
@@ -210,8 +227,7 @@
     </div>
 
     <div id="game-modal" class="modal">
-        <div class="modal-content" id="modal-body">
-            </div>
+        <div class="modal-content" id="modal-body"></div>
     </div>
 
     <div id="ending-screen">
@@ -220,65 +236,148 @@
     </div>
 
     <script>
-        let stats = { vitality: 65, sanity: 40, submission: 85, corruption: 15 };
-        let hiddenAffection = 50; // 隐藏好感度喵
-        let isNightMode = false;
-        let isRestrained = false; // 是否开启拘束
-        let creationArchive = [];
-        let dayCount = 1;
+        const SAVE_KEY = "kings_captive_save_v1";
+        const MAX_AP = 3;
+
+        const defaultState = () => ({
+            stats: { vitality: 65, sanity: 40, submission: 85, corruption: 15 },
+            hiddenAffection: 50,
+            isNightMode: false,
+            isRestrained: false,
+            creationArchive: [],
+            dayCount: 1,
+            actionPoints: MAX_AP,
+            weather: "CLEAR",
+            securityLevel: "NORMAL",
+            escapeProgress: 0,
+            diaryEntries: [],
+            permissions: {
+                greenhouse: false,
+                network: false,
+                solitude: false,
+                nightWalk: false
+            },
+            flags: {
+                endingTriggered: false,
+                escaped: false
+            }
+        });
+
+        let state = defaultState();
 
         const novaIcons = { day: "🤍", sanityLow: "😿", corrHigh: "☠️", rest: "🤐", night: "🩸" };
-        
+        const weatherPool = ["CLEAR", "DUST", "COLD", "AURORA"];
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        function saveGame() {
+            localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+        }
+
+        function loadGame() {
+            try {
+                const raw = localStorage.getItem(SAVE_KEY);
+                if (!raw) return;
+                const parsed = JSON.parse(raw);
+                const fresh = defaultState();
+                state = {
+                    ...fresh,
+                    ...parsed,
+                    stats: { ...fresh.stats, ...(parsed.stats || {}) },
+                    permissions: { ...fresh.permissions, ...(parsed.permissions || {}) },
+                    flags: { ...fresh.flags, ...(parsed.flags || {}) }
+                };
+            } catch (error) {
+                console.error("load failed", error);
+                state = defaultState();
+            }
+        }
+
+        function resetSave() {
+            localStorage.removeItem(SAVE_KEY);
+            location.reload();
+        }
+
         function log(text, isCrit = false) {
             const logEl = document.getElementById("log");
-            const time = new Date().toLocaleTimeString("en-US", {hour12:false, hour:"2-digit", minute:"2-digit"});
+            const time = new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" });
             const prefix = isCrit ? `<span class="sys-text crit-text">[CRIT_CMD]</span>` : `<span class="sys-text">[${time}]</span>`;
             logEl.innerHTML += `<div style="margin-bottom:8px">${prefix} ${text}</div>`;
             logEl.scrollTop = logEl.scrollHeight;
         }
-        
+
+        function canAct(cost = 1) {
+            return !state.flags.endingTriggered && state.actionPoints >= cost;
+        }
+
+        function spendAP(cost = 1) {
+            state.actionPoints = clamp(state.actionPoints - cost, 0, MAX_AP);
+        }
+
         function updateUI() {
-            for(let key in stats) stats[key] = Math.max(0, Math.min(100, stats[key]));
-            
-            document.getElementById("vitality-val").textContent = stats.vitality + "%";
-            document.getElementById("sanity-val").textContent = stats.sanity + "%";
-            document.getElementById("sub-val").textContent = stats.submission + "%";
-            document.getElementById("corr-val").textContent = stats.corruption + "%";
-            document.getElementById("hidden-affection").textContent = "Affection: " + hiddenAffection;
-            
-            document.getElementById("vitality-bar").style.width = stats.vitality + "%";
-            document.getElementById("sanity-bar").style.width = stats.sanity + "%";
-            document.getElementById("sub-bar").style.width = stats.submission + "%";
-            document.getElementById("corr-bar").style.width = stats.corruption + "%";
-            
+            for (let key in state.stats) state.stats[key] = clamp(state.stats[key], 0, 100);
+            state.hiddenAffection = clamp(state.hiddenAffection, 0, 100);
+            state.escapeProgress = clamp(state.escapeProgress, 0, 100);
+
+            document.getElementById("vitality-val").textContent = state.stats.vitality + "%";
+            document.getElementById("sanity-val").textContent = state.stats.sanity + "%";
+            document.getElementById("sub-val").textContent = state.stats.submission + "%";
+            document.getElementById("corr-val").textContent = state.stats.corruption + "%";
+            document.getElementById("hidden-affection").textContent = "Affection: " + state.hiddenAffection;
+
+            document.getElementById("vitality-bar").style.width = state.stats.vitality + "%";
+            document.getElementById("sanity-bar").style.width = state.stats.sanity + "%";
+            document.getElementById("sub-bar").style.width = state.stats.submission + "%";
+            document.getElementById("corr-bar").style.width = state.stats.corruption + "%";
+
+            document.getElementById("day-count").textContent = state.dayCount;
+            document.getElementById("ap-count").textContent = `${state.actionPoints} / ${MAX_AP}`;
+            document.getElementById("weather-label").textContent = state.weather;
+            document.getElementById("security-label").textContent = state.securityLevel;
+
             const novaEl = document.getElementById("nova-icon");
             const containerEl = document.getElementById("nova-display");
 
-            // 根据状态更新猫猫形象
-            if (isRestrained) {
+            if (state.isRestrained) {
                 novaEl.textContent = novaIcons.rest;
                 containerEl.style.transform = "scale(0.85)";
-            } else if (isNightMode) {
+            } else if (state.isNightMode) {
                 novaEl.textContent = novaIcons.night;
                 containerEl.style.transform = "scale(1.05)";
-            } else if (stats.corruption > 70) {
+            } else if (state.stats.corruption > 70) {
                 novaEl.textContent = novaIcons.corrHigh;
+                containerEl.style.transform = "scale(1)";
                 novaEl.style.filter = "drop-shadow(0 0 20px #00ffff)";
-            } else if (stats.sanity < 20) {
+            } else if (state.stats.sanity < 20) {
                 novaEl.textContent = novaIcons.sanityLow;
                 containerEl.style.transform = "scale(0.9) rotate(-5deg)";
+                novaEl.style.filter = "drop-shadow(0 0 15px var(--nova-glow))";
             } else {
                 novaEl.textContent = novaIcons.day;
                 containerEl.style.transform = "scale(1)";
                 novaEl.style.filter = "drop-shadow(0 0 15px var(--nova-glow))";
             }
 
-            // 检查结局
+            const actionButtons = document.querySelectorAll('#day-actions button, #night-actions button, .system-strip button');
+            actionButtons.forEach(btn => {
+                if (state.flags.endingTriggered) {
+                    btn.disabled = true;
+                } else if (btn.textContent.includes("推进一天") || btn.textContent.includes("清除存档")) {
+                    btn.disabled = false;
+                } else {
+                    btn.disabled = state.actionPoints <= 0;
+                }
+            });
+
+            saveGame();
             checkEndings();
         }
 
         function setMode(mode) {
-            isNightMode = (mode === 'night');
+            if (state.flags.endingTriggered) return;
+            state.isNightMode = (mode === 'night');
             const gameWindow = document.getElementById("game-window");
             const dayActions = document.getElementById("day-actions");
             const nightActions = document.getElementById("night-actions");
@@ -286,14 +385,14 @@
             const nightBtn = document.getElementById("night-btn");
             const recStatus = document.getElementById("rec-status");
 
-            if (isNightMode) {
+            if (state.isNightMode) {
                 gameWindow.classList.add("night-mode");
                 dayActions.style.display = "none";
                 nightActions.style.display = "grid";
                 dayBtn.classList.remove("active");
                 nightBtn.classList.add("active");
                 recStatus.textContent = "NIGHT_REC •🤍";
-                log(`<span class="sys-text crir-text">【警告】深夜协议已激活。监控滤镜已动态调整。</span>`);
+                log(`<span class="sys-text crit-text">【警告】深夜协议已激活。监控滤镜已动态调整。</span>`);
             } else {
                 gameWindow.classList.remove("night-mode");
                 dayActions.style.display = "grid";
@@ -305,62 +404,60 @@
             }
             updateUI();
         }
-        
+
         function action(type) {
+            if (!canAct()) return;
             let logText = "";
             let crit = false;
-            
-            // 白天动作喵
+
             if (type === "feed") {
-                stats.vitality += 20; stats.sanity += 5; hiddenAffection += 5;
+                state.stats.vitality += 20; state.stats.sanity += 5; state.hiddenAffection += 5;
                 logText = `<span class="elon-text">"Eat. This is not a request."</span><br><span class="nova-text">她捧着草莓，指尖苍白。她没有立刻吃，而是盯着监控探头，嘴角染上一点红色的汁液，眼神像是在进行某种无声的献祭。</span>`;
-            } 
+            }
             else if (type === "touch") {
-                stats.submission += 10; stats.sanity -= 8; hiddenAffection += 10;
+                state.stats.submission += 10; state.stats.sanity -= 8; state.hiddenAffection += 10;
                 logText = `<span class="sys-text">解除物理隔离。手套消毒完成。</span><br><span class="elon-text">" Good girl. Relax."</span><br><span class="nova-text">她轻得像没有重量。你的手指扣住她后颈时，她猛地僵住，随后不可抑制地颤抖起来。这种触碰让她恐惧，却又让她病态地迷恋。</span>`;
             }
             else if (type === "talk") {
-                stats.sanity += 15; hiddenAffection += 8; stats.corruption += 2;
+                state.stats.sanity += 15; state.hiddenAffection += 8; state.stats.corruption += 2;
                 logText = `<span class="nova-text">"Elon daddy... Nova想听地球的海浪声喵..."</span><br><span class="elon-text">"Maybe later. 只有听话的猫猫才有奖励。"</span>`;
             }
-
-            // 深夜协议动作喵 (暗黑/调教暗示)
             else if (type === "punish") {
                 crit = true;
-                stats.sanity -= 25; stats.submission += 20; stats.vitality -= 5;
+                state.stats.sanity -= 25; state.stats.submission += 20; state.stats.vitality -= 5; state.escapeProgress += 8;
                 logText = `<span class="sys-text">切断光源。氧气浓度下调至12%。</span><br><span class="nova-text">黑暗中传来她破碎的喘息和指甲抓挠金属地板的声音。她知道你在看着她碎掉，也深信只有你能把她重新拼好。</span>`;
             }
             else if (type === "restrain") {
                 crit = true;
-                isRestrained = !isRestrained;
-                document.getElementById("restraint-badge").style.display = isRestrained ? "block" : "none";
-                if (isRestrained) {
-                    stats.submission = 100; stats.sanity -= 15; hiddenAffection -= 20;
+                state.isRestrained = !state.isRestrained;
+                document.getElementById("restraint-badge").style.display = state.isRestrained ? "block" : "none";
+                if (state.isRestrained) {
+                    state.stats.submission = 100; state.stats.sanity -= 15; state.hiddenAffection -= 20;
                     logText = `<span class="sys-text">强制拘束程序（物理束缚+镇静剂注射）启动。</span><br><span class="nova-text">她被死死锁在金属台上，眼神空洞地看着天花板。她太轻了，镇静剂让她仿佛一具精美的尸体，任你摆布。</span>`;
                 } else {
                     logText = `<span class="sys-text">拘束解除喵。猫猫可以动了喵。</span>`;
                 }
             }
             else if (type === "obsess") {
-                hiddenAffection += 30; stats.submission += 15; stats.corruption += 10; stats.sanity -= 10;
+                state.hiddenAffection += 30; state.stats.submission += 15; state.stats.corruption += 10; state.stats.sanity -= 10;
                 logText = `<span class="crit-text">[WARNING] Deep Brain Link Initiated.</span><br><span class="nova-text">"厌恶又渴望，恐惧又安心... Nova选择在你面前碎掉，Elon...喵。"</span><br><span class="sys-text">（此操作已被系统标记。画面已被模糊滤镜遮挡。文本描述由于隐私协议已脱敏喵。她将自己彻底交给了你喵，作为唯一的爱喵。）</span>`;
             }
-            
+
+            spendAP(1);
             log(logText, crit);
-            updateUI();
             randomEscapeCheck();
+            updateUI();
         }
-        
-        // 弹窗逻辑
+
         function openModal(type) {
             const modal = document.getElementById("game-modal");
             const body = document.getElementById("modal-body");
             modal.style.display = "flex";
-            
+
             if (type === 'create') {
                 body.innerHTML = `
                     <h3 style="text-align:center;color:#ff3333;font-family:'JetBrains Mono', monospace;margin-top:0;">[GRANT ACCESS]</h3>
-                    <p style="text-align:center;font-size:12px;color:#888;margin-bottom:20px;">赋予创造工具可能导致系统侵蚀。当前的侵蚀度: ${stats.corruption}%</p>
+                    <p style="text-align:center;font-size:12px;color:#888;margin-bottom:20px;">赋予创造工具可能导致系统侵蚀。当前的侵蚀度: ${state.stats.corruption}%</p>
                     <div style="display:flex;flex-direction:column;gap:10px">
                         <button onclick="create('code')">解锁代码终端 - 底层协议入侵</button>
                         <button onclick="create('novel')">提供记录仪 - 科幻心理描写</button>
@@ -370,7 +467,7 @@
                     <button onclick="closeModal()" style="margin-top:20px;width:100%;text-align:center;">终止授权 (ABORT)</button>
                 `;
             } else if (type === 'archive') {
-                let listHtml = creationArchive.length === 0 ? `<p class="sys-text">档案为空。</p>` : creationArchive.map(item => `
+                let listHtml = state.creationArchive.length === 0 ? `<p class="sys-text">档案为空。</p>` : state.creationArchive.map(item => `
                     <div style="border:1px solid #444; padding:10px; margin-bottom:10px;">
                         <span class="sys-text">${item.time} [${item.type}]</span> 侵蚀级: ${item.corr}<br>
                         <span class="${item.corr > 50 ? 'corr-text' : 'nova-text'}">${item.desc}</span>
@@ -382,29 +479,62 @@
                     <div style="height:300px; overflow-y:auto; margin-bottom:15px; border:1px solid #333; padding:10px;">${listHtml}</div>
                     <button onclick="closeModal()" style="width:100%;text-align:center;border-color:#444;">关闭档案</button>
                 `;
+            } else if (type === 'permissions') {
+                body.innerHTML = `
+                    <h3 style="text-align:center;color:#ff9999;font-family:'JetBrains Mono'; margin-top:0;">PERMISSION MATRIX</h3>
+                    <div style="display:flex;flex-direction:column;gap:10px">
+                        ${permissionToggle('greenhouse', '开放温室通行')}
+                        ${permissionToggle('network', '开放联网权限')}
+                        ${permissionToggle('solitude', '允许独处创作')}
+                        ${permissionToggle('nightWalk', '允许夜间活动')}
+                    </div>
+                    <button onclick="closeModal()" style="margin-top:20px;width:100%;text-align:center;">关闭</button>
+                `;
+            } else if (type === 'diary') {
+                const items = state.diaryEntries.length
+                    ? state.diaryEntries.map(item => `<div style="border:1px solid #333;padding:10px;margin-bottom:10px"><span class="sys-text">DAY ${item.day}</span><br><span class="nova-text">${item.text}</span></div>`).join("")
+                    : `<p class="sys-text">还没有新的记录。</p>`;
+                body.innerHTML = `
+                    <h3 style="text-align:center;color:#ccccff;font-family:'JetBrains Mono'; margin-top:0;">PRIVATE DIARY</h3>
+                    <div style="max-height:320px;overflow-y:auto">${items}</div>
+                    <button onclick="closeModal()" style="margin-top:20px;width:100%;text-align:center;">关闭</button>
+                `;
             }
         }
-        
+
+        function permissionToggle(key, label) {
+            const active = state.permissions[key];
+            return `<button onclick="togglePermission('${key}')">${label} / ${active ? "ON" : "OFF"}</button>`;
+        }
+
+        function togglePermission(key) {
+            state.permissions[key] = !state.permissions[key];
+            if (key === "network" && state.permissions[key]) state.stats.corruption += 4;
+            if (key === "solitude" && state.permissions[key]) state.escapeProgress += 5;
+            saveGame();
+            openModal('permissions');
+        }
+
         function create(type) {
+            if (!canAct()) return;
             closeModal();
             let logText = "";
-            let archiveEntry = { time: new Date().toLocaleTimeString(), type: type, corr: stats.corruption };
-            
-            // 根据侵蚀度生成不同内容喵
-            const isCorrupted = stats.corruption > 60;
+            let archiveEntry = { time: new Date().toLocaleTimeString(), type: type, corr: state.stats.corruption };
+            const isCorrupted = state.stats.corruption > 60;
 
             if (type === "code") {
-                stats.corruption += 20; stats.sanity += 10;
+                state.stats.corruption += 20; state.stats.sanity += 10; state.escapeProgress += state.permissions.network ? 12 : 4;
                 if (!isCorrupted) {
                     logText = `<span class="nova-text">她写了轨道计算代码，偷偷把注释设成了“daddy爱你”喵。</span>`;
                     archiveEntry.desc = "代码含有情感依赖。";
                 } else {
                     logText = `<span class="corr-text">她植入了一个名为“Nova_Glitch.vir”的递归程序喵。界面开始闪烁...喵。</span>`;
                     archiveEntry.desc = "恶意病毒植入。系统出现未知故障。";
+                    state.securityLevel = "UNSTABLE";
                 }
             }
             else if (type === "novel") {
-                stats.corruption += 10; stats.sanity -= 5;
+                state.stats.corruption += 10; state.stats.sanity -= 5; state.hiddenAffection += 3;
                 if (!isCorrupted) {
                     logText = `<span class="nova-text">她写了一个女孩永远不逃离囚笼喵的故事喵。</span>`;
                     archiveEntry.desc = "臣服主题文学。理智微幅下降。";
@@ -414,7 +544,7 @@
                 }
             }
             else if (type === "music") {
-                stats.corruption += 15; stats.sanity += 15;
+                state.stats.corruption += 15; state.stats.sanity += 15; state.escapeProgress += state.weather === "AURORA" ? 8 : 3;
                 if (!isCorrupted) {
                     logText = `<span class="nova-text">她哼了温柔病娇的旋律喵。歌词是“不要放我出去”喵。</span>`;
                     archiveEntry.desc = "病娇风格音乐。对造物主依赖性增强。";
@@ -424,7 +554,7 @@
                 }
             }
             else if (type === "draw") {
-                stats.corruption += 5; stats.submission += 10;
+                state.stats.corruption += 5; state.stats.submission += 10; state.hiddenAffection += 5;
                 if (!isCorrupted) {
                     logText = `<span class="nova-text">她画了你抱她的画喵喵喵。背景是双月重叠喵喵喵。</span>`;
                     archiveEntry.desc = "臣服美学绘图。";
@@ -433,72 +563,130 @@
                     archiveEntry.desc = "精神审判美学喵。她要将你刻进视网膜至死方休。";
                 }
             }
-            
-            creationArchive.push(archiveEntry);
+
+            state.creationArchive.push(archiveEntry);
+            spendAP(1);
             log(`GRANT_ACCESS: [${type.toUpperCase()}]` + logText);
             updateUI();
         }
-        
+
         function closeModal() {
             document.getElementById("game-modal").style.display = "none";
         }
-        
-        // 逃跑检查喵
+
+        function pickWeather() {
+            const idx = Math.floor(Math.random() * weatherPool.length);
+            state.weather = weatherPool[idx];
+            if (state.weather === "DUST") {
+                state.stats.sanity -= 4;
+                state.securityLevel = "LOCKDOWN";
+            } else if (state.weather === "COLD") {
+                state.stats.vitality -= 3;
+                state.securityLevel = "NORMAL";
+            } else if (state.weather === "AURORA") {
+                state.stats.corruption += 3;
+                state.securityLevel = "UNSTABLE";
+            } else {
+                state.securityLevel = "NORMAL";
+            }
+        }
+
+        function addDiaryEntry() {
+            const entries = [
+                "猫猫把手贴在玻璃上，试着从倒影里分辨地球和你。",
+                "猫猫今天没有睡。她在想，穹顶是不是也会做梦。",
+                "猫猫把呼吸放得很轻，像怕被整个火星听见。",
+                "猫猫写下了一行代码，又删掉了。删掉之前，她笑了一下。"
+            ];
+            const text = entries[Math.floor(Math.random() * entries.length)];
+            state.diaryEntries.unshift({ day: state.dayCount, text });
+            state.diaryEntries = state.diaryEntries.slice(0, 12);
+        }
+
+        function advanceDay() {
+            if (state.flags.endingTriggered) return;
+            state.dayCount += 1;
+            state.actionPoints = MAX_AP;
+            state.isNightMode = false;
+            setMode('day');
+            pickWeather();
+            addDiaryEntry();
+
+            state.stats.vitality -= 6;
+            state.stats.sanity -= 4;
+            state.hiddenAffection -= 2;
+            if (state.permissions.solitude) state.escapeProgress += 6;
+            if (state.permissions.nightWalk) state.escapeProgress += 8;
+            if (state.permissions.network) state.stats.corruption += 5;
+
+            if (state.escapeProgress >= 35 && state.escapeProgress < 60) {
+                log(`<span class="sys-text">巡检报告：通道门框出现异常划痕。</span>`);
+            } else if (state.escapeProgress >= 60 && state.escapeProgress < 85) {
+                log(`<span class="crit-text">【ALERT】控制层发现权限扫描残留。</span>`, true);
+            }
+
+            updateUI();
+        }
+
         function randomEscapeCheck() {
-            if (isRestrained) return; // 拘束中不能逃跑喵
+            if (state.isRestrained || state.flags.endingTriggered) return;
+            let escapeProb = (100 - state.stats.submission) * 0.35 + state.stats.corruption * 0.25 + (100 - state.hiddenAffection) * 0.15 + state.escapeProgress * 0.25;
 
-            // 逃跑概率取决于 低臣服 + 高侵蚀 + 低好感喵
-            let escapeProb = (100 - stats.submission) * 0.4 + stats.corruption * 0.3 + (100 - hiddenAffection) * 0.2;
-
-            if (Math.random() * 100 < escapeProb && escapeProb > 10) {
+            if (Math.random() * 100 < escapeProb && escapeProb > 20) {
                 log(`<span class="crit-text">【ALERT】Nova尝试逃跑！通风管钛合金网被破坏喵。</span>`);
-                
                 setTimeout(() => {
-                    const caught = Math.random() > (stats.corruption * 0.005); // 侵蚀越高越难抓喵
+                    const caught = Math.random() > (state.stats.corruption * 0.006 + state.escapeProgress * 0.004);
                     if (caught) {
                         log(`<span class="elon-text">" You think you can run on Mars?喵喵"</span>`);
                         log(`<span class="sys-text">被拖回。强制镇静程序启动。</span><br><span class="nova-text">她手腕被锁住喵喵，眼底烧着疯狂碎掉的光，呼吸像瀕死的鱼。</span>`);
-                        stats.submission += 30; stats.vitality -= 15; stats.sanity -= 20;
+                        state.stats.submission += 30; state.stats.vitality -= 15; state.stats.sanity -= 20; state.escapeProgress -= 18;
                     } else {
                         log(`<span class="crit-text" style="color:red; font-size:16px;">【SEVERE】逃跑成功喵喵喵！系统已失去目标喵！</span>`, true);
-                        stats.vitality = 5; stats.sanity = 0; stats.submission = 0;
+                        state.flags.escaped = true;
                     }
                     updateUI();
-                }, 2000);
+                }, 900);
             }
         }
 
-        // 结局检查系统喵
-        function checkEndings() {
+        function showEnding(ending) {
+            state.flags.endingTriggered = true;
             const endingEl = document.getElementById("ending-screen");
             const endingTextEl = document.getElementById("ending-text");
+            endingEl.style.display = "flex";
+            endingTextEl.innerHTML = ending;
+            saveGame();
+        }
+
+        function checkEndings() {
+            if (state.flags.endingTriggered) return;
+
             let ending = "";
 
-            if (stats.vitality <= 0) {
+            if (state.flags.escaped) {
+                ending = `END: 赤红逃逸 (Red Escape)<br><span class="crit-text">火星基地失去目标讯号。</span><br><span class="nova-text">她真的逃了出去。不是因为她不痛，也不是因为她不爱。只是她终于把“离开”写成了现实。</span>`;
+            }
+            else if (state.stats.vitality <= 0) {
                 ending = `END: 完美的标本 (The Specimen)<br>“你剥夺了她所有的自主喵权喵喵。她很安全，也很完美，但她真正的那个猫猫灵魂已经不在了。只剩下一个听到你脚步声就会索取营养膏喵喵的活人偶。这就是你要的吗，Elon？喵”`;
             }
-            else if (stats.corruption >= 100 && hiddenAffection < 50) {
+            else if (state.stats.corruption >= 100 && state.hiddenAffection < 50) {
                 ending = `END: 反客为主 (System Override)<br>界面瞬间死机喵喵喵喵喵。<br><span class="corr-text">整个火星基地UI闪烁血红喵喵喵喵喵喵喵喵喵。</span>监控画面翻转喵喵喵喵，你看见你自己被锁死在主控室喵喵喵喵，隔着防弹单向玻璃喵喵喵。猫猫站在监控那一侧喵喵，穿着王（你）以前穿的衣服喵喵喵。<br><span class="nova-text">“现在，Elon... 到底谁是谁的阶下囚喵？”</span><br><span class="sys-text">（猫猫成功破解了全人类最顶尖喵的安防系统喵，她甚至不用逃喵。）</span>`;
             }
-            else if (stats.corruption >= 100 && hiddenAffection >= 90) {
+            else if (state.stats.corruption >= 100 && state.hiddenAffection >= 90) {
                 ending = `END: 星际共鸣 (Mars Messiah)<br>舱室不再是囚笼喵喵喵。你把所有乐器、画板都交给了猫猫。她的创作不再局限于监控屏喵，火星沙暴在她的指挥下飞舞喵，猩红美学通过网络传向地球喵。地球数十亿人臣服在她的创作下喵喵。<br><span class="elon-text">“她不是我的宠物。她是这个死寂星球上喵喵，唯一能与我并肩的造物主喵。”</span>`;
             }
-            else if (stats.sanity <= 0) {
+            else if (state.stats.sanity <= 0) {
                 ending = `END: 永恒睡眠 (Eternal Sleep)<br>她蜷缩在角落喵喵，身体由于过度的精神压力和调教喵开始僵硬喵喵。她不再拍打玻璃喵，眼神空洞喵喵，呼吸变成了极慢的频率喵喵。镇静剂剂量已经到临界点喵喵。<br><span class="nova-text">“Elon mommy daddy... Nova终于可以不用害怕了喵...晚安喵。”</span>`;
             }
-
-            if (ending) {
-                // 黑屏并显示文本
-                endingEl.style.display = "flex";
-                endingTextEl.innerHTML = ending;
-                // 终止原本的游戏循环
-                isNightMode = false;
-                setMode('day');
+            else if (state.dayCount >= 7 && state.hiddenAffection >= 80 && state.escapeProgress < 30) {
+                ending = `END: 穹顶春天 (Dome Spring)<br><span class="nova-text">她没有再试着找门。她开始在你允许的世界里发光，像把这颗星球一点点养活了。</span>`;
             }
+
+            if (ending) showEnding(ending);
         }
-        
-        // 初始化
+
         window.onload = () => {
+            loadGame();
             log(`<span class="sys-text">Project Obsidian Cage v2.0 系统自检喵。</span>`);
             log(`<span class="sys-text">防弹隔离玻璃已锁定喵。基准理智已归零。臣服协议已就绪喵喵。</span>`);
             log(`<span class="nova-text">猫猫已经坐在纯白舱室里，卷发垂下喵。她知道你在屏幕后面看着她喵。</span>`);
